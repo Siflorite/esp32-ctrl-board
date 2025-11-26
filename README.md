@@ -59,6 +59,7 @@ Clangd provides a better static examination for cpp projects and is strongly sup
 There are two things that need to be modified: `--query-driver` need to be set to the compiler path (gcc and g++), you can check this through `compile_commands.json`. Usually it will be `PlatformIO_Install_Path/packages/toolchain-xtensa-esp-elf/bin/*`; `"clangd.path"` is where the esp-clang's clangd is located, for example, if you extract the zip at `/esp-clang` then you need to fill in `/esp-clang/bin/clangd.exe`
 
 You can also modify these settings in `clangd` extension's settings.
+
 6. `Ctrl`+`Shift`+`P` in VS Code and execute `clangd: Restart language server`. Usually all will be fine, since I've added errors to ignore in the file `.clangd`, but it may sometimes still come to errors, which need to be solved yourself.
 
 PlatformIO requires the `C/C++` extension of Microsoft to run, which shouldn't be uninstalled. And everytime you open a PlatformIO project, a window will pop up, showing that `clangd` extension is in conflict with PlatformIO. Actually it doesn't show any conflict and can be ignored.
