@@ -1,0 +1,31 @@
+CompileFlags:
+  Add: [
+    -DSSIZE_MAX,
+    -DLWIP_NO_UNISTD_H=1,
+    -Dssize_t=long,
+    -D_SSIZE_T_DECLARED,
+    -Wno-unknown-warning-option,
+    -D __XTENSA__=1,
+    -D XCHAL_HAVE_LOOPS=1,
+    -D XCHAL_NUM_AREGS=64,
+  ]
+  Remove: [
+    -mlong-calls,
+    -mdisable-hardware-atomics,
+    -fno-tree-switch-conversion,
+    -mtext-section-literals,
+    -mlongcalls,
+    -fstrict-volatile-bitfields,
+    -free,
+    -fipa-pta,
+    -march=*,
+    -mabi=*,
+    -mcpu=*
+  ]
+Diagnostics:
+  Suppress:
+    [
+      "drv_unknown_argument",
+      "unused_includes",
+      "pp_file_not_found",
+    ]
