@@ -169,7 +169,8 @@ void showSolenoidStatus(const unsigned char& status) {
 }
 
 void writeDAC(int data) {
-    const uint8_t data_1 = static_cast<uint8_t>(data << 8); // 高四位为0
+    if (data > 4095) return;
+    const uint8_t data_1 = static_cast<uint8_t>(data >> 8); // 高四位为0
     const uint8_t data_2 = static_cast<uint8_t>(data & 0xFF);
     Wire.beginTransmission(DAC_ADDR);
     Wire.write(data_1);

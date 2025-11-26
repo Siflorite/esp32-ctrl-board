@@ -226,7 +226,7 @@ void CtrlBoardManager::solenoidToggleChannel(int channel, bool status) {
 
 void CtrlBoardManager::updatePressure() {
     const float proportion = static_cast<float>(cur_pressure) / static_cast<float>(max_pressure);
-    const int quantized_data = static_cast<int>(std::round(proportion));
+    const int quantized_data = static_cast<int>(std::round(proportion * 4096.0));
     const int data = std::min(quantized_data, 4095);
     writeDAC(data);
 }
