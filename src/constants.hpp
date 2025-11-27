@@ -75,3 +75,8 @@ constexpr auto LED_ARR = []() {
     }
     return arr;
 };
+
+// 蓝牙相关
+constexpr uint16_t SERVICE_UUID = 0xABCD;
+constexpr uint16_t WRITE_CHARA_UUID = 0x1234;
+constexpr uint16_t NOTIF_CHARA_UUID = 0x5678;

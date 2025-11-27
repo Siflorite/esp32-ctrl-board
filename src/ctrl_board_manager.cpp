@@ -38,6 +38,9 @@ CtrlBoardManager::CtrlBoardManager(AccelStepper* sp, AccelStepper* pp) {
     // 光源初始化
     brightness = 200;
     light_status = false;
+
+    // BLE相关
+    ble_manager = std::make_unique<BLEManager>(SERVICE_UUID, WRITE_CHARA_UUID, NOTIF_CHARA_UUID);
 }
 
 CtrlBoardManager::~CtrlBoardManager() {
@@ -87,6 +90,17 @@ void CtrlBoardManager::init() {
     for (auto i : LED_ARR()) {
         leds[i] = CRGB::White;
     }
+
+    ble_manager->init([this](NimBLECharacteristic* pCharacteristic) {
+        if (!pCharacteristic) return;
+        if (pCharacteristic->getUUID() == NimBLEUUID(WRITE_CHARA_UUID)) {
+            auto value = pCharacteristic->getValue();
+            std::string command_str = convertAttrValue<std::string>(value);
+            std::string msg_str = std::format("BLE接收到指令: {}", command_str);
+            Serial.println(msg_str.c_str());
+            this->procInstruction(command_str);
+        }
+    });
 }
 
 void CtrlBoardManager::setSyringeSpeed(float speed, bool b_volume_speed) {

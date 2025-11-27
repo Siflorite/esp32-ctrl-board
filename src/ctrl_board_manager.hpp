@@ -3,8 +3,10 @@
 #include <AccelStepper.h>
 #include <Arduino.h>
 #include <array>
+#include "ble_manager.hpp"
 #include "constants.hpp"
 #include <FastLED.h>
+#include <memory>
 #include "types.hpp"
 
 class CtrlBoardManager {
@@ -35,6 +37,8 @@ private:
     uint8_t brightness;
     bool light_status;
 
+    // 蓝牙相关, init后才会初始化！
+    std::unique_ptr<BLEManager> ble_manager;
 public:
     CtrlBoardManager(AccelStepper* sp = nullptr, AccelStepper* pp = nullptr);
     ~CtrlBoardManager();

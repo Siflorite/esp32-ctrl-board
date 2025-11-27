@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "NimBLEDevice.h"
 #include <variant>
 
 enum class SyringeFinetuneType : unsigned char {
@@ -17,3 +18,6 @@ struct SwitchStatus {};
 struct SwitchChannel { int channel; };
 struct SwitchReset {};
 using SwitchCommand = std::variant<SwitchRaw, SwitchCheck, SwitchStatus, SwitchChannel, SwitchReset>;
+
+// 回调函数
+using OnWriteCallBackFunction = std::function<void(NimBLECharacteristic*)>;
