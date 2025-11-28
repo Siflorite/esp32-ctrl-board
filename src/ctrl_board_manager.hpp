@@ -39,6 +39,9 @@ private:
 
     // 蓝牙相关, init后才会初始化！
     std::unique_ptr<BLEManager> ble_manager;
+
+    // 消息队列，传入单个消息都不用带`\n`
+    std::vector<std::string> msg_queue;
 public:
     CtrlBoardManager(AccelStepper* sp = nullptr, AccelStepper* pp = nullptr);
     ~CtrlBoardManager();
@@ -62,4 +65,6 @@ public:
     void updateLED();
 
     void procInstruction(std::string_view instruction);
+
+    void postNewMessage();
 };

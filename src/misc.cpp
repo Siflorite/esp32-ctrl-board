@@ -155,17 +155,15 @@ void transmit595(uint8_t data) {
     digitalWrite(STCP, HIGH);
 }
 
-void showSolenoidStatus(const unsigned char& status) {
-    Serial.print("电磁阀状态：");
+std::string formatSolenoidStatus(const unsigned char& status) {
+    std::string msg_str;
+    msg_str += "电磁阀状态：";
     for (int i = 0; i < 8; i++) {
         std::string_view status_str = ((status & (1 << i)) == 0) ? "关闭" : "开启";
         std::string output_str = std::format("通道{}: {} ", (i + 1), status_str);
-        if (i != 7) {
-            Serial.print(output_str.c_str());
-        } else {
-            Serial.println(output_str.c_str());
-        }
+        msg_str += output_str;
     }
+    return msg_str;
 }
 
 void writeDAC(int data) {

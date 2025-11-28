@@ -15,7 +15,7 @@ void transmit485(const uint8_t* data, size_t len = 8);
 void procSwitchData(const SwitchCommand& command);
 
 void transmit595(uint8_t data);
-void showSolenoidStatus(const unsigned char& status);
+std::string formatSolenoidStatus(const unsigned char& status);
 
 void writeDAC(int data);
 

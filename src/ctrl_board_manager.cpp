@@ -1,8 +1,6 @@
 #include "ctrl_board_manager.hpp"
 
-#include "FastLED.h"
 #include "constants.hpp"
-#include "esp32-hal-gpio.h"
 #include "misc.hpp"
 #include "types.hpp"
 
@@ -41,10 +39,12 @@ CtrlBoardManager::CtrlBoardManager(AccelStepper* sp, AccelStepper* pp) {
 
     // BLE相关
     ble_manager = std::make_unique<BLEManager>(SERVICE_UUID, WRITE_CHARA_UUID, NOTIF_CHARA_UUID);
+    
+    msg_queue.reserve(10);
 }
 
 CtrlBoardManager::~CtrlBoardManager() {
-    
+    msg_queue.clear();
 }
 
 void CtrlBoardManager::init() {
@@ -96,6 +96,7 @@ void CtrlBoardManager::init() {
         if (pCharacteristic->getUUID() == NimBLEUUID(WRITE_CHARA_UUID)) {
             auto value = pCharacteristic->getValue();
             std::string command_str = convertAttrValue<std::string>(value);
+            // 这里的输出暂时先不通过消息队列处理，毕竟串口只是debug用
             std::string msg_str = std::format("BLE接收到指令: {}", command_str);
             Serial.println(msg_str.c_str());
             this->procInstruction(command_str);
@@ -114,7 +115,7 @@ void CtrlBoardManager::setSyringeSpeed(float speed, bool b_volume_speed) {
     }
 
     if (stepper) {
-        stepper->setMaxSpeed(syringe_speed);    // 最大速度（步/秒）
+        stepper->setMaxSpeed(syringe_speed); // 最大速度（步/秒）
     }
 }
 
@@ -159,22 +160,22 @@ void CtrlBoardManager::syrineFinetune(const SyringeFinetuneType& type) {
             case SPEED_UP:
                 stepper->setMaxSpeed(FINETUNE_FAST);
                 moveMm(distance);
-                Serial.println("注射泵快速上移");
+                msg_queue.emplace_back("注射泵快速上移");
                 break;
             case SLOW_UP:
                 stepper->setMaxSpeed(FINETUNE_SLOW);
                 moveMm(distance);
-                Serial.println("注射泵慢速上移");
+                msg_queue.emplace_back("注射泵慢速上移");
                 break;
             case SLOW_DOWN:
                 stepper->setMaxSpeed(FINETUNE_SLOW);
                 moveMm(-distance);
-                Serial.println("注射泵慢速下移");
+                msg_queue.emplace_back("注射泵慢速下移");
                 break;
             case SPEED_DOWN:
                 stepper->setMaxSpeed(FINETUNE_FAST);
                 moveMm(-distance);
-                Serial.println("注射泵快速下移");
+                msg_queue.emplace_back("注射泵快速下移");
                 break;
         }
     }
@@ -201,7 +202,7 @@ void CtrlBoardManager::maintainMotor() {
             stepper->run();
         } else {
             if (syringe_status == true) {
-                Serial.println("注射泵运动完成");
+                msg_queue.emplace_back("注射泵运动完成");
                 syringe_status = false;
             }
         }
@@ -212,7 +213,7 @@ void CtrlBoardManager::maintainMotor() {
             stepper_pp->run();
         } else {
             if (peristaltic_status == true) {
-                Serial.println("蠕动泵运动完成");
+                msg_queue.emplace_back("蠕动泵运动完成");
                 peristaltic_status = false;
             }
         }
@@ -274,7 +275,7 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
         // 注射泵控制
         if (token_count == 2 && tokens_vec[1] == "-s") {
             stopSyringe();
-            Serial.println("注射泵已停止");
+            msg_queue.emplace_back("注射泵已停止");
             b_proc_success = true;
         } else if (token_count == 3) {
             const auto instruction = tokens_vec[1];
@@ -285,11 +286,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                 if (speed > 0 && speed <= FINETUNE_FAST) {
                     setSyringeSpeed(speed);
                     std::string msg_str = std::format(
-                        "已设置注射泵速度为 {} 微步/s，对应电机转速 {} rps\n",
+                        "已设置注射泵速度为 {} 微步/s，对应电机转速 {} rps",
                         speed,
                         speed / MICROSTEPS_1 / STEPS_PER_REV
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             } else if (instruction == "-sv") {
@@ -297,11 +298,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                 if (speed > 0 && speed <= SYRINGE_MAXIMUM_SPEED) {
                     setSyringeSpeed(speed, true);
                     std::string msg_str = std::format(
-                        "已设置注射泵速度为 {} mL/s，对应电机转速 {} rps\n",
+                        "已设置注射泵速度为 {} mL/s，对应电机转速 {} rps",
                         speed,
                         speed * V2D_RATIO / SCREW_PITCH
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             } else if (instruction == "-f" || instruction == "-b") {
@@ -311,11 +312,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     const std::string_view pos_str = (instruction == "-f") ? "正向" : "反向";
                     moveMm(distance_r);
                     std::string msg_str = std::format(
-                        "注射泵 {} 移动 {} mm\n",
+                        "注射泵 {} 移动 {} mm",
                         pos_str,
                         distance
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             } else if (instruction == "-fv" || instruction == "-bv") {
@@ -326,11 +327,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     const std::string_view pos_str = (instruction == "-fv") ? "正向" : "反向";
                     moveMm(distance_r);
                     std::string msg_str = std::format(
-                        "注射泵 {} 移动 {} mL\n",
+                        "注射泵 {} 移动 {} mL",
                         pos_str,
                         volume
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             } else if (instruction == "-ft") {
@@ -344,14 +345,14 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
         }
 
         if (!b_proc_success) {
-            Serial.println("无效指令，格式应为：");
+            msg_queue.emplace_back("无效注射泵指令");
             printSyringeInstr();
         }
     } else if (tokens_vec[0] == "pp") {
         // 蠕动泵控制
         if (token_count == 2 && tokens_vec[1] == "-s") {
             stopPeristaltic();
-            Serial.println("蠕动泵已停止");
+            msg_queue.emplace_back("蠕动泵已停止");
             b_proc_success = true;
         } else if (token_count == 3) {
             auto instruction = tokens_vec[1];
@@ -362,11 +363,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                 if (speed > 0 && speed <= PERISTALTIC_MAXIMUM_MICROSTEP) {
                     setPeristalticSpeed(speed);
                     std::string msg_str = std::format(
-                        "已设置蠕动泵速度为 {} 微步/s，对应电机转速 {} rps\n",
+                        "已设置蠕动泵速度为 {} 微步/s，对应电机转速 {} rps",
                         speed,
                         speed / MICROSTEPS_2 / STEPS_PER_REV
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             } else if (instruction == "-sv") {
@@ -374,11 +375,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                 if (speed > 0 && speed <= PERISTALTIC_MAXIMUM_SPEED) {
                     setPeristalticSpeed(speed, true);
                     std::string msg_str = std::format(
-                        "已设置蠕动泵速度为 {} mL/s，对应电机转速 {} rps\n",
+                        "已设置蠕动泵速度为 {} mL/s，对应电机转速 {} rps",
                         speed,
                         speed * V2R_RATIO
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             } else if (instruction == "-f" || instruction == "-b") {
@@ -388,11 +389,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     const std::string_view pos_str = (instruction == "-f") ? "正向" : "反向";
                     ppMoveRounds(rounds_r);
                     std::string msg_str = std::format(
-                        "蠕动泵 {} 转动 {} 转\n",
+                        "蠕动泵 {} 转动 {} 转",
                         pos_str,
                         rounds
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             } else if (instruction == "-fv" || instruction == "-bv") {
@@ -403,18 +404,18 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     const std::string_view pos_str = (instruction == "-fv") ? "正向" : "反向";
                     ppMoveRounds(rounds_r);
                     std::string msg_str = std::format(
-                        "蠕动泵 {} 转动 {} mL\n",
+                        "蠕动泵 {} 转动 {} mL",
                         pos_str,
                         volume
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                     b_proc_success = true;
                 }
             }
         }
 
         if (!b_proc_success) {
-            Serial.println("无效指令，格式应为：");
+            msg_queue.emplace_back("无效蠕动泵指令");
             printPeristalticInstr();
         }
     } else if (tokens_vec[0] == "sv") {
@@ -444,8 +445,11 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
 
         if (b_proc_success) {
             procSwitchData(cmd);
+            if (ble_manager) {
+                ble_manager->notify("已发送旋转阀指令");
+            }
         } else {
-            Serial.println("指令暂不支持，可用指令：");
+            msg_queue.emplace_back("无效旋转阀指令");
             printSwitchInstr();
         }
 
@@ -454,8 +458,8 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
         if (token_count == 2 && tokens_vec[1] == "-s") {
             b_proc_success = true;
         } else if (token_count == 3) {
-            const std::string instr = tokens_vec[1];
-            const std::string val = tokens_vec[2];
+            const std::string& instr = tokens_vec[1];
+            const std::string& val = tokens_vec[2];
             if (instr == "-d") {
                 const int status_val = std::stoi(val);
                 if (status_val >= 0 && status_val <= 255) {
@@ -463,21 +467,21 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     solenoid_valve_status = static_cast<unsigned char>(status_val);
                     transmit595(solenoid_valve_status);
                 }  else {
-                    Serial.println("输入整数参数必须在0~255之间");
+                    msg_queue.emplace_back("输入整数参数必须在0~255之间");
                 }
             } else if (instr == "-b") {
                 if (val.length() == 8 && binStringToBytes(val, &solenoid_valve_status)) {
                     b_proc_success = true;
                     transmit595(solenoid_valve_status);
                 } else {
-                    Serial.println("输入参数必须是8个二进制数（0或1）");
+                    msg_queue.emplace_back("输入参数必须是8个二进制数（0或1）");
                 }
             } else if (instr == "-h") {
                 if (val.length() == 2 && hexStringToBytes(val, &solenoid_valve_status)) {
                     b_proc_success = true;
                     transmit595(solenoid_valve_status);
                 } else {
-                    Serial.println("输入参数必须是2个十六进制字符（0~F）");
+                    msg_queue.emplace_back("输入参数必须是2个十六进制字符（0~F）");
                 }
             }
         } else if (token_count == 4) {
@@ -488,21 +492,22 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                 if (channel >= 1 && channel <= 8) {
                     solenoidToggleChannel(channel, status);
                 } else {
-                    Serial.println("参数错误：通道（即第一个参数）需要在[1,8]范围");
+                    msg_queue.emplace_back("参数错误：通道（即第一个参数）需要在[1,8]范围");
                 }
             }
         }
 
         if (b_proc_success) {
-            showSolenoidStatus(solenoid_valve_status);
+            std::string msg_str = formatSolenoidStatus(solenoid_valve_status);
+            msg_queue.push_back(std::move(msg_str));
         } else{
-            Serial.println("指令错误，可用指令:");
+            msg_queue.emplace_back("电磁阀指令错误");
             printSolenoidInstr();
         }
     } else if (tokens_vec[0] == "pv") {
         // 比例阀控制
         if (token_count == 3) {
-            std::string cmd = tokens_vec[1];
+            const std::string& cmd = tokens_vec[1];
             int val = std::stoi(tokens_vec[2]);
             if (cmd == "-max") {
                 b_proc_success = true;
@@ -511,12 +516,12 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     updatePressure();
 
                     std::string msg_str = std::format(
-                        "已将最大压强记录为 {} kPa\n",
+                        "已将最大压强记录为 {} kPa",
                         max_pressure
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                 } else {
-                    Serial.println("最大压强必须在 (0, 500] kPa范围内");
+                    msg_queue.emplace_back("最大压强必须在 (0, 500] kPa范围内");
                 }
             } else if (cmd == "-p") {
                 b_proc_success = true;
@@ -525,22 +530,22 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     updatePressure();
 
                     std::string msg_str = std::format(
-                        "输出压强 {} kPa\n",
+                        "输出压强 {} kPa",
                         cur_pressure
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                 } else {
                     std::string msg_str = std::format(
-                        "输出压强必须在 [0, {}] kPa范围内\n",
+                        "输出压强必须在 [0, {}] kPa范围内",
                         max_pressure
                     );
-                    Serial.print(msg_str.c_str());
+                    msg_queue.push_back(std::move(msg_str));
                 }
             }
         }
 
         if (!b_proc_success) {
-            Serial.println("指令错误，可用指令:");
+            msg_queue.emplace_back("比例阀指令错误");
             printProportionInstr();
         }
 
@@ -549,15 +554,15 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
         if (token_count == 2 && (tokens_vec[1] == "-on" || tokens_vec[1] == "-off")) {
             if (tokens_vec[1] == "-off") {
                 shutLED();
-                Serial.println("已关闭光源");
+                msg_queue.emplace_back("已关闭光源");
             } else {
                 updateLED();
                 light_status = true;
                 std::string msg_str = std::format(
-                    "已开启光源，亮度为 {}\n",
+                    "已开启光源，亮度为 {}",
                     brightness
                 );
-                Serial.print(msg_str.c_str());
+                msg_queue.push_back(std::move(msg_str));
             }
         } else if (token_count == 3 && tokens_vec[1] == "-b") {
             int val = std::stoi(tokens_vec[2]);
@@ -567,19 +572,19 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
                     updateLED();
                 }
                 std::string msg_str = std::format(
-                    "已调整亮度为 {}\n",
+                    "已调整亮度为 {}",
                     brightness
                 );
-                Serial.print(msg_str.c_str());
+                msg_queue.push_back(std::move(msg_str));
             } else {
-                Serial.println("亮度值需要在[0,255]范围内");
+                msg_queue.emplace_back("亮度值需要在[0,255]范围内");
             }
         } else {
-            Serial.println("指令错误，可用指令:");
+            msg_queue.emplace_back("光源指令错误");
             printLightInstr();
         }
     } else {
-        Serial.println("无效指令");
+        msg_queue.emplace_back("无效指令");
         Serial.println("可用命令：");
         printSyringeInstr();
         printPeristalticInstr();
@@ -588,4 +593,14 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
         printProportionInstr();
         printLightInstr();
     }
+}
+
+void CtrlBoardManager::postNewMessage() {
+    for (const auto& msg_str : msg_queue) {
+        Serial.println(msg_str.c_str());
+        if (ble_manager) {
+            ble_manager->notify(msg_str);
+        }
+    }
+    msg_queue.clear();
 }

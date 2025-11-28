@@ -24,7 +24,7 @@ void loop() {
         previous_millis = current_millis;
         
         procSerialCommand(manager);
-        if (stepper_pp.distanceToGo() > 0) Serial.println(stepper_pp.distanceToGo());
+        manager.postNewMessage();
     }
     
     manager.maintainMotor();

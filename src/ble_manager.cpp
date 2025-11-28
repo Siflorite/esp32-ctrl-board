@@ -83,7 +83,7 @@ void BLEManager::notify(std::string_view message) {
     if (isConnected() && notif_chara) {
         notif_chara->setValue(message);
         notif_chara->notify();
-        Serial.printf("BLE Manager notified: %.*s\n", message.length(), message.data());
+        // Serial.printf("BLE Manager notified: %.*s\n", message.length(), message.data());
     } else {
         Serial.println("BLE Manager fails to notify!");
     }
