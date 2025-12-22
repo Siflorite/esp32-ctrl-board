@@ -89,7 +89,7 @@ void transmit485(const uint8_t* data, size_t len) {
     }
 }
 
-void procSwitchData(const SwitchCommand& command) {
+void  procSwitchData(const SwitchCommand& command) {
     std::array<uint8_t, 8> buffer{};
 
     std::visit([&buffer](auto&& arg) {

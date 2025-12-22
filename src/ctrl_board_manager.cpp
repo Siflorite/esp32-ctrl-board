@@ -12,10 +12,9 @@
 #include <vector>
 #include "Wire.h"
 
-CtrlBoardManager::CtrlBoardManager(AccelStepper* sp, AccelStepper* pp) {
-    stepper = sp;
-    stepper_pp = pp;
-
+CtrlBoardManager::CtrlBoardManager(AccelStepper* sp, AccelStepper* pp) 
+    : stepper(sp), stepper_pp(pp) {
+        
     // 配置步进电机参数
     // 这些参数目前都是随手填的，需要规范化
     syringe_speed = 3200; // 等效速度0.2mm/s -> 0.057mL/s
@@ -54,7 +53,7 @@ void CtrlBoardManager::init() {
     Serial1.begin(9600, SERIAL_8N1, RX_485, TX_485);
 
     pinMode(EN_PIN, OUTPUT);
-    digitalWrite(EN_PIN, HIGH);  // 启用3个电机驱动器
+    pinMode(P_EN, OUTPUT);
 
     // 74HC595
     pinMode(DS, OUTPUT);
@@ -220,10 +219,16 @@ void CtrlBoardManager::maintainMotor() {
     }
 
     // 不用时关闭使能
-    if (syringe_status || peristaltic_status) {
+    if (syringe_status) {
         digitalWrite(EN_PIN, LOW);
     } else {
         digitalWrite(EN_PIN, HIGH);
+    }
+
+    if (peristaltic_status) {
+        digitalWrite(P_EN, LOW);
+    } else {
+        digitalWrite(P_EN, HIGH);
     }
 }
 
@@ -598,7 +603,7 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
 void CtrlBoardManager::postNewMessage() {
     for (const auto& msg_str : msg_queue) {
         Serial.println(msg_str.c_str());
-        if (ble_manager) {
+        if (ble_manager && ble_manager->isConnected()) {
             ble_manager->notify(msg_str);
         }
     }

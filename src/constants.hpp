@@ -6,11 +6,12 @@
 // 注射泵(motor1)
 constexpr uint8_t STEP_PIN = 8;
 constexpr uint8_t DIR_PIN = 9;
-constexpr uint8_t EN_PIN = 7;
+constexpr uint8_t EN_PIN = 12;
 
 // 蠕动泵(motor2)
 constexpr uint8_t P_STEP = 10;
 constexpr uint8_t P_DIR = 11;
+constexpr uint8_t P_EN = 13;
 
 // motor3
 // constexpr uint8_t STEP = 12;
@@ -43,7 +44,7 @@ constexpr uint8_t SCL_PIN = 16;
 // constexpr uint8_t SCL      = 18;
 
 // WS2812阵列数据
-constexpr uint8_t WS_IN = 21;
+constexpr uint8_t WS_IN = 7;
 
 // 运动参数
 constexpr float SCREW_PITCH = 0.8; // M5螺纹，螺距0.8mm/转
