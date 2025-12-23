@@ -132,6 +132,7 @@ void CtrlBoardManager::setPeristalticSpeed(float speed, bool b_volume_speed) {
 
 void CtrlBoardManager::moveMm(float mm) {
     const long target = mm * (STEPS_PER_REV * MICROSTEPS_1) / SCREW_PITCH;
+    digitalWrite(EN_PIN, LOW);
     if (stepper) {
         stepper->move(target);
     }
@@ -140,6 +141,7 @@ void CtrlBoardManager::moveMm(float mm) {
 
 void CtrlBoardManager::ppMoveRounds(float rounds) {
     const long target = rounds * (STEPS_PER_REV * MICROSTEPS_2);
+    digitalWrite(P_EN, LOW);
     if (stepper_pp) {
         stepper_pp->move(target);
     }
@@ -204,10 +206,12 @@ void CtrlBoardManager::maintainMotor() {
                 msg_queue.emplace_back("注射泵运动完成");
                 syringe_status = false;
             }
+            // 不用时关闭使能
+            digitalWrite(EN_PIN, HIGH);
         }
     }
 
-    if (stepper) {
+    if (stepper_pp) {
         if (stepper_pp->distanceToGo() != 0) {
             stepper_pp->run();
         } else {
@@ -215,20 +219,9 @@ void CtrlBoardManager::maintainMotor() {
                 msg_queue.emplace_back("蠕动泵运动完成");
                 peristaltic_status = false;
             }
+            // 不用时关闭使能
+            digitalWrite(P_EN, HIGH);
         }
-    }
-
-    // 不用时关闭使能
-    if (syringe_status) {
-        digitalWrite(EN_PIN, LOW);
-    } else {
-        digitalWrite(EN_PIN, HIGH);
-    }
-
-    if (peristaltic_status) {
-        digitalWrite(P_EN, LOW);
-    } else {
-        digitalWrite(P_EN, HIGH);
     }
 }
 
@@ -450,7 +443,7 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
 
         if (b_proc_success) {
             procSwitchData(cmd);
-            if (ble_manager) {
+            if (ble_manager && ble_manager->isConnected()) {
                 ble_manager->notify("已发送旋转阀指令");
             }
         } else {

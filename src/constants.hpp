@@ -13,23 +13,19 @@ constexpr uint8_t P_STEP = 10;
 constexpr uint8_t P_DIR = 11;
 constexpr uint8_t P_EN = 13;
 
-// motor3
-// constexpr uint8_t STEP = 12;
-// constexpr uint8_t DIR = 13;
-
 // 连接切换阀的UART1
 constexpr uint8_t RX_485 = 2;
 constexpr uint8_t TX_485 = 1;
 
 // 第二组74HC595
-// constexpr uint8_t DS 14;
-// constexpr uint8_t SHCP 42;
-// constexpr uint8_t STCP 41;
+constexpr uint8_t DS = 14;
+constexpr uint8_t SHCP = 42;
+constexpr uint8_t STCP = 41;
 
 // 第一组74HC595
-constexpr uint8_t DS = 4;
-constexpr uint8_t SHCP = 5;
-constexpr uint8_t STCP = 6;
+// constexpr uint8_t DS = 4;
+// constexpr uint8_t SHCP = 5;
+// constexpr uint8_t STCP = 6;
 
 // 第一组DAC
 // constexpr uint8_t DAC_ADDR  = 0x60;
