@@ -1,4 +1,7 @@
 .cache/
+.github/
 .pio/
 .vscode/
-./compile_commands.json
+.cursorrules
+compile_commands.json
+CODEBUDDY.md

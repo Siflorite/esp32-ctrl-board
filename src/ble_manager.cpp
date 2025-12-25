@@ -1,10 +1,11 @@
 #include "ble_manager.hpp"
 
-BLEManager::BLEManager(uint16_t service_uuid, uint16_t write_chara_uuid, uint16_t notif_chara_uuid) 
+BLEManager::BLEManager(uint16_t service_uuid, uint16_t write_chara_uuid, uint16_t notif_chara_uuid, uint16_t data_chara_uuid) 
     : server(nullptr), notif_chara(nullptr), write_chara(nullptr),
         _service_uuid(service_uuid), 
         _write_chara_uuid(write_chara_uuid), 
-        _notif_chara_uuid(notif_chara_uuid)
+        _notif_chara_uuid(notif_chara_uuid),
+        _data_chara_uuid(data_chara_uuid)
 {
 
 }
@@ -60,11 +61,26 @@ void BLEManager::init(OnWriteCallBackFunction write_callback) {
     notify_description_2904_ptr->setFormat(NimBLE2904::FORMAT_UTF8);
     // 描述特征
     NimBLEDescriptor* notify_description_2901_ptr = notif_chara->createDescriptor("2901", NIMBLE_PROPERTY::READ);
-    notify_description_2901_ptr->setValue(" Control Board Status Notification");
+    notify_description_2901_ptr->setValue("Control Board Message Notification");
+
+    // 特征0xFACE，可读和订阅
+    data_chara = service_ptr->createCharacteristic(
+        _data_chara_uuid, 
+        NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
+    );
+    // 设置特征被读写时的回调函数
+    data_chara->setCallbacks(chara_callbacks.get());
+    // 类型为UTF8
+    NimBLE2904* data_description_2904_ptr = notif_chara->create2904();
+    data_description_2904_ptr->setFormat(NimBLE2904::FORMAT_UTF8);
+    // 描述特征
+    NimBLEDescriptor* data_description_2901_ptr = notif_chara->createDescriptor("2901", NIMBLE_PROPERTY::READ);
+    data_description_2901_ptr->setValue("Control Board Status Notification");
 
     // 开启服务
     service_ptr->start();
     notif_chara->setValue("Control Board BLE Activated.");
+    data_chara->setValue("");
 
     // 开启广播
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
@@ -86,5 +102,14 @@ void BLEManager::notify(std::string_view message) {
         // Serial.printf("BLE Manager notified: %.*s\n", message.length(), message.data());
     } else {
         Serial.println("BLE Manager fails to notify!");
+    }
+}
+
+void BLEManager::notify_data(const std::array<uint8_t, PACKET_SIZE>& buffer) {
+    if (isConnected() && data_chara) {
+        data_chara->setValue(buffer);
+        data_chara->notify();
+    } else {
+        Serial.println("BLE Manager fails to notify data!");
     }
 }

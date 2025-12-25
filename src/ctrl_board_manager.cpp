@@ -24,6 +24,8 @@ CtrlBoardManager::CtrlBoardManager(AccelStepper* sp, AccelStepper* pp)
     peristaltic_status = false;
 
     switch_channel = 0;
+    is_switch_waiting = false;
+    start_time_485 = 0;
 
     // 电磁阀状态：默认全关闭
     solenoid_valve_status = 0;
@@ -37,7 +39,7 @@ CtrlBoardManager::CtrlBoardManager(AccelStepper* sp, AccelStepper* pp)
     light_status = false;
 
     // BLE相关
-    ble_manager = std::make_unique<BLEManager>(SERVICE_UUID, WRITE_CHARA_UUID, NOTIF_CHARA_UUID);
+    ble_manager = std::make_unique<BLEManager>(SERVICE_UUID, WRITE_CHARA_UUID, NOTIF_CHARA_UUID, DATA_CHARA_UUID);
     
     msg_queue.reserve(10);
 }
@@ -441,14 +443,16 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
             }
         }
 
-        if (b_proc_success) {
-            procSwitchData(cmd);
-            if (ble_manager && ble_manager->isConnected()) {
-                ble_manager->notify("已发送旋转阀指令");
-            }
-        } else {
+        if (!b_proc_success) {
             msg_queue.emplace_back("无效旋转阀指令");
             printSwitchInstr();
+        } else if (is_switch_waiting) {
+            msg_queue.emplace_back("旋转阀正忙");
+        } else {
+            std::string msg_str = procSwitchData(cmd);
+            msg_queue.push_back(std::move(msg_str));
+            is_switch_waiting = true;
+            start_time_485 = millis();
         }
 
     } else if (tokens_vec[0] == "sov") {
@@ -591,6 +595,12 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
         printProportionInstr();
         printLightInstr();
     }
+
+    if (is_switch_waiting && millis() - start_time_485 >= WAIT_TIME_485) {
+        std::string msg_str = receive485();
+        msg_queue.push_back(std::move(msg_str));
+        is_switch_waiting = false;
+    }
 }
 
 void CtrlBoardManager::postNewMessage() {
@@ -601,4 +611,53 @@ void CtrlBoardManager::postNewMessage() {
         }
     }
     msg_queue.clear();
+}
+
+void CtrlBoardManager::updateBuffer() {
+    uint8_t* ptr = buffer.data();
+    int syringe_steps = 0;
+    int peristaltic_steps = 0;
+
+    if (stepper) {
+        syringe_steps = stepper->distanceToGo();
+    }
+    if (stepper_pp) {
+        peristaltic_steps = stepper_pp->distanceToGo();
+    }
+        
+    // 浮点数转换（4字节）
+    memcpy(ptr, &syringe_speed, sizeof(float));
+    ptr += sizeof(float);
+    memcpy(ptr, &peristaltic_speed, sizeof(float));
+    ptr += sizeof(float);
+    
+    // long类型转换（4字节）
+    memcpy(ptr, &syringe_steps, sizeof(long));
+    ptr += sizeof(long);
+    memcpy(ptr, &peristaltic_steps, sizeof(long));
+    ptr += sizeof(long);
+    
+    // bool状态（1字节）
+    *ptr++ = syringe_status ? 1 : 0;
+    *ptr++ = peristaltic_status ? 1 : 0;
+    
+    // 旋转阀通道（1字节）
+    *ptr++ = switch_channel;
+    
+    // 电磁阀状态（1字节）
+    *ptr++ = solenoid_valve_status;
+    
+    // 整数类型（4字节）
+    memcpy(ptr, &max_pressure, sizeof(int));
+    ptr += sizeof(int);
+    memcpy(ptr, &cur_pressure, sizeof(int));
+    ptr += sizeof(int);
+    
+    // 光源相关（2字节）
+    *ptr++ = brightness;
+    *ptr++ = light_status ? 1 : 0;
+}
+
+void CtrlBoardManager::notifyData() {
+    updateBuffer();
 }

@@ -21,6 +21,10 @@ constexpr int hexToNibble(const char c) {
     return -1;
 }
 
+constexpr char digitToHex(const unsigned char c) {
+    return HEX_UPPER[c & 0x0F];
+}
+
 bool hexStringToBytes(std::string_view sv, unsigned char* output) {
     const int len = sv.length();
 
@@ -56,52 +60,61 @@ bool binStringToBytes(std::string_view sv, unsigned char* output) {
     return true;
 }
 
-// 目前的实现是阻塞的，请勿在电机运行时切换旋转阀！
+std::string charArrayToString(const uint8_t* data, const size_t len) {
+    std::string hex_str;
+    for (size_t i = 0; i < len; i++) {
+        const uint8_t byte = data[i];
+        hex_str += digitToHex(byte >> 4); // 高4位
+        hex_str += digitToHex(byte); // 低4位
+        if (i < len - 1) hex_str += ", ";
+    }
+    return hex_str;
+}
+
 void transmit485(const uint8_t* data, size_t len) {
     // 向串口转485模块发送数据
     // 包含了发送数据和接受反馈的全流程
-    Serial.print("待发送数据: (");
-    for (int i = 0; i < len; i++) {
-        if (i != len-1) {
-            Serial.printf("%x, ", data[i]);
-        } else {
-            Serial.printf("%x)\n", data[i]);
-        }
-    }
+
+    // Serial.print("待发送数据: (");
+    // for (int i = 0; i < len; i++) {
+    //     if (i != len-1) {
+    //         Serial.printf("%x, ", data[i]);
+    //     } else {
+    //         Serial.printf("%x)\n", data[i]);
+    //     }
+    // }
     Serial1.write(data, len);
-    Serial.println("数据已发送至485模块");
+    // Serial.println("数据已发送至485模块");
+}
 
-    // 一般1s内响应，先等待1000ms
-    delay(1000);
-
+std::string receive485() {
+    std::string response_str{};
     if (Serial1.available() >= 8) {
         std::array<uint8_t, 8> response;
         Serial1.readBytes(response.data(), 8);
-        Serial.print("收到响应：");
-        for (int i = 0; i < 8; i++) {
-            if (response[i] < 0x10) Serial.print('0');
-            Serial.print(response[i], HEX);
-            Serial.print(' ');
-        }
-        Serial.println();
+        response_str = "收到响应：";
+        // 使用暴力方法。。。
+        response_str += charArrayToString(response.data(), 8);
     } else {
-        Serial.println("响应超时");
+        response_str = "响应超时";
     }
+    return response_str;
 }
 
-void  procSwitchData(const SwitchCommand& command) {
+std::string procSwitchData(const SwitchCommand& command) {
     std::array<uint8_t, 8> buffer{};
-
-    std::visit([&buffer](auto&& arg) {
+    
+    std::string msg_str = std::visit([&buffer](auto&& arg) -> std::string {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, SwitchRaw>) {
             // RAW指令，传入16个16进制字符的字符串
             const std::string_view cmd_str = arg.raw_cmd;
             if (cmd_str.length() == INSTR_485_LEN * 2 && hexStringToBytes(cmd_str, buffer.data())) {
                 transmit485(buffer.data(), INSTR_485_LEN);
+                std::string transmit_hex_str = charArrayToString(buffer.data(), 8);
+                return std::format("发送数据：%s", transmit_hex_str);
             } else {
-                Serial.println("十六进制数据格式错误");
-                Serial.println("需要16个十六进制字符，例如：CC00200000DDC901");
+                return "十六进制数据格式错误，需要16个十六进制字符，如：CC00200000DDC901";
             }
         } else {
             // 根据指令生成待传输的数据
@@ -122,8 +135,7 @@ void  procSwitchData(const SwitchCommand& command) {
                     buffer[2] = 0x44;
                     buffer[3] = channel;
                 } else {
-                    Serial.println("通道数错误，应在1~6之间");
-                    return;
+                    return "通道数错误，应在1~6之间";
                 }
             } else if constexpr (std::is_same_v<T, SwitchReset>) {
                 buffer[2] = 0x45;
@@ -139,10 +151,13 @@ void  procSwitchData(const SwitchCommand& command) {
             }
             buffer[6] = static_cast<uint8_t>(sum % 256);
             buffer[7] = static_cast<uint8_t>(sum / 256);
-
             transmit485(buffer.data(), INSTR_485_LEN);
+            std::string transmit_hex_str = charArrayToString(buffer.data(), 8);
+            return std::format("发送数据：%s", transmit_hex_str);
         } 
     }, command);
+    
+    return msg_str;
 }
 
 void transmit595(uint8_t data) {

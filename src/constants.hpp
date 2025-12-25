@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <array>
+#include <string_view>
 
 // 引脚定义
 // 注射泵(motor1)
@@ -59,6 +60,9 @@ constexpr float PERISTALTIC_MAXIMUM_MICROSTEP = PERISTALTIC_MAXIMUM_SPEED * V2R_
 
 // 485模块指令长度，默认为8byte
 constexpr int INSTR_485_LEN = 8;
+// 485回复等待时间(ms)
+constexpr int WAIT_TIME_485 = 1000;
+constexpr std::string_view HEX_UPPER = "0123456789ABCDEF";
 
 constexpr long INTERVAL = 50; // 间隔时间(毫秒)
 constexpr int NUM_LEDS = 64; // WS2812 LED数量
@@ -77,3 +81,5 @@ constexpr auto LED_ARR = []() {
 constexpr uint16_t SERVICE_UUID = 0xABCD;
 constexpr uint16_t WRITE_CHARA_UUID = 0x1234;
 constexpr uint16_t NOTIF_CHARA_UUID = 0x5678;
+constexpr uint16_t DATA_CHARA_UUID = 0xFACE;
+constexpr size_t PACKET_SIZE = 30;

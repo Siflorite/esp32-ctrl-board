@@ -24,6 +24,11 @@ private:
     // 旋转阀当前通道，关闭时为0，开始时范围为1~6
     unsigned char switch_channel;
 
+    // 实现485回调函数
+    bool is_switch_waiting;
+    unsigned long start_time_485;
+
+
     // 电磁阀状态，一共8位，就是8bit数据，用unsigned char保存即可
     // 25.11.25 review: 笑嘻了，半年前居然无意间自己实现了个vector<bool>
     unsigned char solenoid_valve_status;
@@ -42,6 +47,10 @@ private:
 
     // 消息队列，传入单个消息都不用带`\n`
     std::vector<std::string> msg_queue;
+
+    // 同步数据
+    std::array<uint8_t, PACKET_SIZE> buffer;
+    void updateBuffer();
 public:
     CtrlBoardManager(AccelStepper* sp = nullptr, AccelStepper* pp = nullptr);
     ~CtrlBoardManager();
@@ -67,4 +76,5 @@ public:
     void procInstruction(std::string_view instruction);
 
     void postNewMessage();
+    void notifyData();
 };

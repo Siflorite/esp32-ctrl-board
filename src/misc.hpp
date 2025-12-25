@@ -8,11 +8,14 @@
 
 // Helper functions:
 constexpr int hexToNibble(const char c);
+constexpr char digitToHex(const unsigned char c);
 bool hexStringToBytes(std::string_view sv, unsigned char* output);
 bool binStringToBytes(std::string_view sv, unsigned char* output);
+std::string charArrayToString(const uint8_t* data, const size_t len);
 
 void transmit485(const uint8_t* data, size_t len = 8);
-void procSwitchData(const SwitchCommand& command);
+std::string receive485();
+std::string procSwitchData(const SwitchCommand& command);
 
 void transmit595(uint8_t data);
 std::string formatSolenoidStatus(const unsigned char& status);
