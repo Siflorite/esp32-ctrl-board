@@ -71,10 +71,10 @@ void BLEManager::init(OnWriteCallBackFunction write_callback) {
     // 设置特征被读写时的回调函数
     data_chara->setCallbacks(chara_callbacks.get());
     // 类型为UTF8
-    NimBLE2904* data_description_2904_ptr = notif_chara->create2904();
-    data_description_2904_ptr->setFormat(NimBLE2904::FORMAT_UTF8);
+    NimBLE2904* data_description_2904_ptr = data_chara->create2904();
+    data_description_2904_ptr->setFormat(NimBLE2904::FORMAT_SINT128);
     // 描述特征
-    NimBLEDescriptor* data_description_2901_ptr = notif_chara->createDescriptor("2901", NIMBLE_PROPERTY::READ);
+    NimBLEDescriptor* data_description_2901_ptr = data_chara->createDescriptor("2901", NIMBLE_PROPERTY::READ);
     data_description_2901_ptr->setValue("Control Board Status Notification");
 
     // 开启服务

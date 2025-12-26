@@ -51,6 +51,9 @@ private:
     // 同步数据
     std::array<uint8_t, PACKET_SIZE> buffer;
     void updateBuffer();
+    void postNewMessage();
+    void notifyData();
+    void updateEvent();
 public:
     CtrlBoardManager(AccelStepper* sp = nullptr, AccelStepper* pp = nullptr);
     ~CtrlBoardManager();
@@ -75,6 +78,5 @@ public:
 
     void procInstruction(std::string_view instruction);
 
-    void postNewMessage();
-    void notifyData();
+    void update();
 };

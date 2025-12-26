@@ -24,7 +24,8 @@ void loop() {
         previous_millis = current_millis;
         
         procSerialCommand(manager);
-        manager.postNewMessage();
+        manager.update();
+
     }
     
     manager.maintainMotor();

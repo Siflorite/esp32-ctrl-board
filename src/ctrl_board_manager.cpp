@@ -595,12 +595,6 @@ void CtrlBoardManager::procInstruction(std::string_view instruction) {
         printProportionInstr();
         printLightInstr();
     }
-
-    if (is_switch_waiting && millis() - start_time_485 >= WAIT_TIME_485) {
-        std::string msg_str = receive485();
-        msg_queue.push_back(std::move(msg_str));
-        is_switch_waiting = false;
-    }
 }
 
 void CtrlBoardManager::postNewMessage() {
@@ -660,4 +654,21 @@ void CtrlBoardManager::updateBuffer() {
 
 void CtrlBoardManager::notifyData() {
     updateBuffer();
+    if (ble_manager && ble_manager->isConnected()) {
+        ble_manager->notify_data(buffer);
+    }
+}
+
+void CtrlBoardManager::updateEvent() {
+    if (is_switch_waiting && millis() - start_time_485 >= WAIT_TIME_485) {
+        std::string msg_str = receive485();
+        msg_queue.push_back(std::move(msg_str));
+        is_switch_waiting = false;
+    }
+}
+
+void CtrlBoardManager::update() {
+    updateEvent();
+    postNewMessage();
+    notifyData();
 }

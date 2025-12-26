@@ -153,7 +153,7 @@ std::string procSwitchData(const SwitchCommand& command) {
             buffer[7] = static_cast<uint8_t>(sum / 256);
             transmit485(buffer.data(), INSTR_485_LEN);
             std::string transmit_hex_str = charArrayToString(buffer.data(), 8);
-            return std::format("发送数据：%s", transmit_hex_str);
+            return std::format("发送数据：{}", transmit_hex_str);
         } 
     }, command);
     
