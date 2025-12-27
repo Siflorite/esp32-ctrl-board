@@ -18,9 +18,11 @@ CtrlBoardManager::CtrlBoardManager(AccelStepper* sp, AccelStepper* pp)
     // 配置步进电机参数
     // 这些参数目前都是随手填的，需要规范化
     syringe_speed = 3200; // 等效速度0.2mm/s -> 0.057mL/s
+    syringe_target_steps = 0;
     syringe_status = false;
 
     peristaltic_speed = 800; // 等效蠕动泵0.5转/s
+    peristaltic_target_steps = 0;
     peristaltic_status = false;
 
     switch_channel = 0;
@@ -136,6 +138,7 @@ void CtrlBoardManager::moveMm(float mm) {
     const long target = mm * (STEPS_PER_REV * MICROSTEPS_1) / SCREW_PITCH;
     digitalWrite(EN_PIN, LOW);
     if (stepper) {
+        syringe_target_steps = target;
         stepper->move(target);
     }
     syringe_status = true;
@@ -145,6 +148,7 @@ void CtrlBoardManager::ppMoveRounds(float rounds) {
     const long target = rounds * (STEPS_PER_REV * MICROSTEPS_2);
     digitalWrite(P_EN, LOW);
     if (stepper_pp) {
+        peristaltic_target_steps = target;
         stepper_pp->move(target);
     }
     peristaltic_status = true;
@@ -626,6 +630,10 @@ void CtrlBoardManager::updateBuffer() {
     ptr += sizeof(float);
     
     // long类型转换（4字节）
+    memcpy(ptr, &syringe_target_steps, sizeof(long));
+    ptr += sizeof(long);
+    memcpy(ptr, &peristaltic_target_steps, sizeof(long));
+    ptr += sizeof(long);
     memcpy(ptr, &syringe_steps, sizeof(long));
     ptr += sizeof(long);
     memcpy(ptr, &peristaltic_steps, sizeof(long));

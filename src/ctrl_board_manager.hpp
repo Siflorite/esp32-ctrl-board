@@ -18,6 +18,10 @@ private:
     float syringe_speed;
     float peristaltic_speed;
 
+    // 注射泵与蠕动泵目标距离，单位为步
+    long syringe_target_steps;
+    long peristaltic_target_steps;
+
     bool syringe_status;
     bool peristaltic_status;
 

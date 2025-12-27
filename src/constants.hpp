@@ -82,4 +82,4 @@ constexpr uint16_t SERVICE_UUID = 0xABCD;
 constexpr uint16_t WRITE_CHARA_UUID = 0x1234;
 constexpr uint16_t NOTIF_CHARA_UUID = 0x5678;
 constexpr uint16_t DATA_CHARA_UUID = 0xFACE;
-constexpr size_t PACKET_SIZE = 30;
+constexpr size_t PACKET_SIZE = 38;
